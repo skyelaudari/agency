@@ -26,7 +26,8 @@ agency/
 │   ├── delegation-pattern.md # File-based inbox/archive + launchd one-shots
 │   ├── memory-conventions.md # Daily logs, curated long-term, references
 │   ├── channels-setup.md     # Per-agent Telegram bot pattern
-│   └── oauth-boundaries.md   # Hard account boundaries enforced at runtime
+│   ├── oauth-boundaries.md   # Hard account boundaries enforced at runtime
+│   └── infrastructure.md     # Tailscale + Syncthing for remote / multi-machine
 ├── templates/
 │   ├── agent/                # Skeleton for a single agent
 │   └── workspace/            # Workspace-level scaffolding

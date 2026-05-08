@@ -217,6 +217,12 @@ rm ~/Library/LaunchAgents/com.agency.<agent>.session.plist
 
 **"MCP server keeps disconnecting after I delegate"** — you're spawning specialists from a subshell instead of via `submit-delegation.sh`. See `docs/delegation-pattern.md`.
 
+## (Optional) Remote access + multi-machine setup
+
+If you'll run the agent fleet on a dedicated headless Mac mini (recommended once you outgrow your daily driver) and want to edit/inspect from your laptop, see `docs/infrastructure.md` for the Tailscale + Syncthing setup. Two short paragraphs each — Tailscale gives you SSH + Screen Sharing into the mini from anywhere; Syncthing keeps the artifact-and-reference content (skill packs, drafts) replicated across machines without a cloud middleman.
+
+Both are skippable on day one. Add them when the setup outgrows being on a single machine.
+
 ## What you have now
 
 After this walkthrough:

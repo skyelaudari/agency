@@ -11,7 +11,7 @@ A concrete, fictional worked instance of an orchestrator agent.
 **How to use as a starting point:**
 1. Copy `CLAUDE.md` to your new agent's directory
 2. Replace identity (Atlas → your agent name) and persona (Alex Reeve → you)
-3. Replace `@reeve.run` with your domain
+3. Replace `@reeve.com` with your domain
 4. Replace `<alex-telegram-user-id>` with your Telegram user ID
 5. Adjust the specialists list to match the agents you're actually running
 6. Trim sections that don't apply (e.g., daily sweeps if your agent isn't running scheduled work)
