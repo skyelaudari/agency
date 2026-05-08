@@ -62,7 +62,7 @@ cd $WORKSPACE_ROOT
 
 ```bash
 cd $WORKSPACE_ROOT
-git clone <agency-repo-url> agency
+git clone https://github.com/skyelaudari/agency.git agency
 cd agency
 chmod +x bin/*.sh
 ```
