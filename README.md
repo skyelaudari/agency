@@ -1,18 +1,18 @@
 # agency
 
-A pattern for running a personal team of AI agents on a flat-rate Claude Code subscription, instead of paying per-token through the API.
+A pattern for running a personal team of AI agents on a flat-rate Claude Code subscription.
 
 Each agent has its own identity, its own memory, its own messaging channel, and its own scoped credentials. They run as long-lived `tmux` sessions managed by `launchd`, communicate via a file-based delegation protocol, and live in a workspace-of-workspaces directory layout.
 
-This repo is the framework, the bootstrap installer, and the templates. It's not the agents themselves — those are yours to define. What you get here is the scaffolding that makes a multi-agent personal infrastructure tractable to set up and operate.
+This repo is the framework, the bootstrap installer, and the templates. It's not the agents themselves — those are yours to define. This is the scaffolding that makes a multi-agent personal infrastructure tractable to set up and operate.
 
 ## Why this exists
 
-Personal AI agents that run continuously and remember context across sessions are powerful, but the obvious shape — point each agent at the Anthropic API and let it run — gets expensive fast. A single agent doing daily inbox sweeps + occasional research can rack up `$30–60/day` in token costs. Multiply by the number of specialists you'd want and you're looking at a non-trivial monthly bill.
+Personal AI agents that run continuously and remember context across sessions are powerful, but get expensive fast when running on usage-based APIs.
 
-Claude Code on a flat subscription removes the per-token cost from the equation. A long-running session that's idle costs the same as one that's working. That changes which design choices are actually affordable: review-and-improve loops, scheduled memory writes, multiple independent agents running concurrently — all become free at the margin.
+Claude Code on a flat subscription removes the per-token cost.
 
-The architecture here is the answer to "how do you actually wire this up so it holds together"?
+The architecture here is the answer how to wire this up so it holds together.
 
 ## What's inside
 
