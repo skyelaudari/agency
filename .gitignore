@@ -1,0 +1,48 @@
+# macOS
+.DS_Store
+._*
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Secrets & credentials — NEVER commit
+*.token
+*.key
+*.pem
+.mcp/oauth/
+.mcp/*.token
+.env
+.env.*
+
+# Personal state — these are workspace-specific, not framework
+memory/
+shared/journal.md
+shared/context.md
+shared/delegations/inbox/
+shared/delegations/archive/
+
+# Agent runtime artifacts
+.claude/
+.tmp/
+*.log
+*.pid
+
+# Temporary delegation files
+/tmp/wake-*.txt
+/tmp/agent-*.txt
+
+# Node / npm (if any helpers add deps later)
+node_modules/
+package-lock.json
+
+# Python (if any helpers add scripts later)
+__pycache__/
+*.pyc
+.venv/
+
+# Build/install artifacts
+dist/
+build/

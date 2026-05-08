@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  agent-session.plist.template
+
+  launchd User Agent that supervises a persistent tmux session running
+  `claude --channels` for one agent. Drop into ~/Library/LaunchAgents/
+  with substitutions applied, then bootstrap:
+
+      launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/<your-label>.plist
+
+  Substitutions (replace before saving):
+    {{LABEL}}           e.g.  com.example.myresearcher.session
+    {{AGENT_NAME}}      e.g.  researcher           (matches dir + tmux session name)
+    {{WORKSPACE_ROOT}}  e.g.  /Users/you/agents    (parent dir of all agent dirs)
+    {{HOME}}            e.g.  /Users/you           (your $HOME)
+    {{CLAUDE_BIN_DIR}}  e.g.  /Users/you/.nvm/versions/node/v22.22.2/bin
+
+  Or use the provided bootstrap-agent.sh helper which substitutes for you.
+-->
+<dict>
+    <key>Label</key>
+    <string>{{LABEL}}</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>{{WORKSPACE_ROOT}}/.agency/bin/agent-session.sh</string>
+        <string>{{AGENT_NAME}}</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>{{WORKSPACE_ROOT}}/{{AGENT_NAME}}</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>{{CLAUDE_BIN_DIR}}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+
+        <key>HOME</key>
+        <string>{{HOME}}</string>
+
+        <key>WORKSPACE_ROOT</key>
+        <string>{{WORKSPACE_ROOT}}</string>
+
+        <!-- Per-agent state dir for the channels-mode plugin. KEEP THIS
+             PER-AGENT so each tmux server has its own env and bots don't
+             collide on Telegram's 409 (single-poller-per-bot) constraint. -->
+        <key>TELEGRAM_STATE_DIR</key>
+        <string>{{WORKSPACE_ROOT}}/{{AGENT_NAME}}/.claude/channels/telegram</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Restart at most once per 10s if the session keeps dying -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>{{WORKSPACE_ROOT}}/{{AGENT_NAME}}/logs/session.out</string>
+
+    <key>StandardErrorPath</key>
+    <string>{{WORKSPACE_ROOT}}/{{AGENT_NAME}}/logs/session.err</string>
+</dict>
+</plist>

@@ -1,0 +1,145 @@
+# Delegation pattern
+
+When one agent hands work to another, the handoff happens through a markdown file in a shared inbox. The recipient processes the file, appends a `# Response` section, and moves the file to an archive. That's the whole protocol.
+
+This is the load-bearing primitive that makes a multi-agent setup tractable. Get it right and every other piece falls into place.
+
+## Why files
+
+Three properties that matter, and one corollary.
+
+**Reviewable.** Every delegation is a markdown file you can `cat`. Every response is appended to it. The trail is just a folder. When something goes wrong, you don't reconstruct what was sent — you read it.
+
+**Async-native.** The inbox doesn't care whether the recipient is awake. The orchestrator drops the file and moves on. The recipient picks it up when its session is ready. No timing coupling, no queue infrastructure, no message broker.
+
+**Recoverable.** If a session dies mid-task, no in-flight state is lost. The file is still in the inbox. The recipient picks up where it left off on next wake.
+
+The corollary: every delegation IS its own audit log, retrospective, and replay. You can reconstruct what the system did at any point by reading the archive.
+
+## Why launchd one-shot (not subshell)
+
+This is the non-obvious part.
+
+The naive way to wake a specialist is to spawn it from the orchestrator's shell:
+
+```bash
+# DON'T DO THIS
+(cd ~/agents/specialist && claude -p "check inbox")
+```
+
+This breaks. The subshell-spawned child inherits the parent's process group at the kernel level. Some MCP server transports (notably the Telegram channels-mode plugin running under bun) interpret the spawn-time process tree perturbation as transport-unhealthy and recycle. That kills the parent's MCP-to-claude pipe, which means the parent loses its messaging surface.
+
+The fix is to make the spawn a child of `PID 1` instead of the parent. On macOS, that means routing through `launchd`:
+
+```bash
+LABEL=$(./bin/submit-delegation.sh specialist /tmp/wake-prompt.txt)
+./bin/wait-delegation.sh "$LABEL"
+./bin/cleanup-delegation.sh "$LABEL"
+```
+
+The helper writes a one-shot plist, bootstraps it via `launchctl bootstrap`, returns the unique label. The job runs as a `launchd`-managed process with its own session, fully decoupled from the orchestrator's process tree.
+
+Why this matters in practice: the failure mode of the subshell pattern is silent — the orchestrator's MCP transport recycles, the user's messages stop arriving in the orchestrator's session, and there's no error in any one place that points at the spawn as the cause. The launchd pattern eliminates the failure mode by construction.
+
+## File format
+
+```
+shared/delegations/inbox/<timestamp>-<from>-<to>-<slug>.md
+```
+
+Where:
+- `<timestamp>` is `YYYY-MM-DDTHH-MM-SS` (ISO-ish, file-system-safe). Lets you sort delegations chronologically.
+- `<from>` is the orchestrator agent name
+- `<to>` is the specialist agent name
+- `<slug>` is a short kebab-case hint at the task
+
+Frontmatter:
+
+```yaml
+---
+from: <orchestrator>
+to: <specialist>
+created: <timestamp>
+status: open | in-progress | rfc1 | complete
+priority: high | normal | low
+sla: <human-readable expectation>
+deliverable: <one-line summary of what's being asked>
+---
+```
+
+Body sections (recommended, not enforced):
+
+1. **Task** — what's being asked
+2. **Context** — what the specialist needs to know
+3. **Constraints** — hard rules, non-negotiables, things to NOT do
+4. **Deliverable** — what artifact + format + where it lives when done
+5. **Reference materials** — paths to relevant files
+
+When the specialist finishes, it appends a `# Response` section to the same file, then moves the file to `shared/delegations/archive/`.
+
+## Response section
+
+```markdown
+---
+
+# Response
+
+**Status:** complete | partial | blocked
+
+**Output:** <path-to-artifact>
+
+**Summary:** <2-3 sentences>
+
+**What landed well:** <bullets>
+
+**Sections to look at first:** <bullets — what's least confident>
+
+**Concerns / flags:** <bullets — anything the orchestrator should know>
+```
+
+Keep it short. The orchestrator (or the user) should be able to read the response in 30 seconds and decide whether to dig into the artifact or move on.
+
+## RFC flow
+
+If the specialist needs clarification before it can finish, it doesn't pick a direction and apologize later. It returns the file with `-rfc1` suffix and a `## Open questions` section listing what it needs to know.
+
+```
+inbox/2026-05-07T16-05-00-atlas-writer-essay-v2-rfc1.md
+```
+
+The orchestrator (or the user) answers the questions inline, bumps to `-rfc1-answered`, moves the file back to inbox, and re-fires the launchd one-shot to wake the specialist.
+
+The point of RFC isn't friction. It's that an under-specified delegation produces a wrong artifact, and a wrong artifact costs more to throw away than the round-trip cost of asking.
+
+## Helpers
+
+Three scripts in `bin/`:
+
+**`submit-delegation.sh <target> <prompt-file> [flags]`**
+Generates a unique launchd plist label, writes the plist, bootstraps it, returns the label. Optional flags:
+- `--add-dir <path>` — additional directory the spawned session can access
+- `--mcp-config <path>` — explicit MCP config (otherwise inherits `<target>/.mcp.json`)
+- `--strict-mcp-config` — pair with `--mcp-config` to lock down MCP loading
+- `--allowed-tools "<list>"` — limit tool surface
+
+`--dangerously-skip-permissions` is built in — required for the spawned session to actually write files without interactive permission grants that won't fire in `-p` mode.
+
+**`wait-delegation.sh <label>`**
+Polls launchctl for the job's exit. Blocks until done. Returns the log path + exit code.
+
+**`cleanup-delegation.sh <label> [--keep-logs]`**
+Tears down the plist + removes generated artifacts. Default removes logs; `--keep-logs` preserves output for inspection.
+
+All three are POSIX shell scripts. No Python, no Node, no dependencies beyond what's already on macOS.
+
+## Anti-patterns
+
+**Spawning specialists from a subshell.** Documented above. This is the failure mode that motivated the launchd pattern.
+
+**Skipping the file step ("just call the API directly").** You lose async-native, you lose the audit trail, and you couple the orchestrator's session lifetime to the specialist's. Don't.
+
+**Not writing a Response section.** The artifact alone is not the deliverable. The Response is what tells the orchestrator (or the user) whether the artifact landed. Specialists that skip this step force the orchestrator to read the artifact end-to-end on every delegation, which doesn't scale.
+
+**Mixing "wake the agent" with "give the agent an instruction."** The wake prompt should be `"check your delegation inbox; new file is at <path>; process per its instructions"`. NOT the full task brief inline. The brief is in the file. The wake prompt is just the trigger.
+
+**Forgetting to archive.** Files left in inbox after completion clutter the queue and lose the "what's actually open right now" signal. Archive is part of the closeout — make it a hard requirement in the delegation template.
