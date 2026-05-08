@@ -59,8 +59,8 @@ You'll probably want something else if:
 
 ## Status
 
-Private, early. The architecture is in production for the author's personal use. The templates and installer are being extracted and de-PII'd from that working setup. Expect rough edges.
+Early public release. The architecture is in production for the author's personal use; the templates and installer have been extracted from that working setup. Expect rough edges.
 
 ## License
 
-TBD. Currently no license — assume "all rights reserved" until that changes.
+[MIT](./LICENSE). Use, fork, and contribute freely.
