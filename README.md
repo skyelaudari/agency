@@ -4,7 +4,7 @@ A pattern for running a personal team of AI agents on a flat-rate Claude Code su
 
 Each agent has its own identity, its own memory, its own messaging channel, and its own scoped credentials. They run as long-lived `tmux` sessions managed by `launchd`, communicate via a file-based delegation protocol, and live in a workspace-of-workspaces directory layout.
 
-This repo is the framework, the bootstrap installer, and the templates. It's not the agents themselves — those are yours to define. This is the scaffolding that makes a multi-agent personal infrastructure tractable to set up and operate.
+This repo is the framework, the bootstrap installer, and the templates. It's not the agents themselves — those are yours to define. This is the scaffolding for a multi-agent personal infrastructure.
 
 ## Why this exists
 
