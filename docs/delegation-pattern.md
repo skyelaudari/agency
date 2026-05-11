@@ -118,7 +118,7 @@ Three scripts in `bin/`:
 **`submit-delegation.sh <target> <prompt-file> [flags]`**
 Generates a unique launchd plist label, writes the plist, bootstraps it, returns the label. Optional flags:
 - `--add-dir <path>` — additional directory the spawned session can access
-- `--mcp-config <path>` — explicit MCP config (otherwise inherits `<target>/.mcp.json`)
+- `--mcp-config <path>` — explicit MCP config (otherwise inherits `<target>/.mcp.json`, or the per-target default from the case block — see "Channels-mode targets" below)
 - `--strict-mcp-config` — pair with `--mcp-config` to lock down MCP loading
 - `--allowed-tools "<list>"` — limit tool surface
 
@@ -131,6 +131,46 @@ Polls launchctl for the job's exit. Blocks until done. Returns the log path + ex
 Tears down the plist + removes generated artifacts. Default removes logs; `--keep-logs` preserves output for inspection.
 
 All three are POSIX shell scripts. No Python, no Node, no dependencies beyond what's already on macOS.
+
+## Channels-mode targets and the worker MCP gotcha
+
+If your target agent runs in `--channels` mode (i.e., it has a Telegram bot polling via the channels plugin), naive delegation will silently break the target's Telegram connection. This is the second non-obvious failure mode after the subshell issue, and the symptoms look unrelated to delegation.
+
+### The bug
+
+When the worker claude is spawned without an explicit `--mcp-config`, it loads the target's MCP setup. That setup includes the Telegram channels plugin (which spawns a `bun` process polling the bot). Telegram's API enforces a single `getUpdates` consumer per bot token, so when the worker's bun starts polling, the target's bun has to lose. The plugin's stale-poller-detection logic SIGTERMs the older bun. Worker exits, its bun dies too. Net result: the target has no Telegram channel until you restart its claude session.
+
+The pathological pattern shows up in the plugin's stderr log:
+```
+telegram channel: polling as @your_bot
+telegram channel: replacing stale poller pid=XXXX
+telegram channel: shutting down
+```
+…repeated dozens of times across delegation events, with the target's `bot.pid` file going missing each time.
+
+### The fix
+
+Spawn the worker with a curated `--mcp-config` that includes everything the target needs at delegation time EXCEPT the telegram plugin. Pair with `--strict-mcp-config` so nothing else sneaks in.
+
+The bundled `submit-delegation.sh` has a case block (right after option parsing) where you map per-target curated configs:
+
+```sh
+if [ -z "$MCP_CONFIG" ]; then
+    case "$TARGET" in
+        my-channels-agent)
+            MCP_CONFIG="${WORKSPACE_ROOT}/.delegations/worker-mcp-my-channels-agent.json"
+            STRICT_MCP=1
+            ;;
+        *) ;;
+    esac
+fi
+```
+
+Use `templates/worker-mcp.json.template` as the starting shape — drop in every MCP server from the target's `.mcp.json`, leave telegram out. One curated config per channels-mode target.
+
+### Targets that don't need this
+
+If the target agent is terminal-only (no `--channels` flag, no telegram bot), the default behavior is correct and the case block doesn't need an entry. Symptom check: if `pgrep -f "bun.*telegram"` returns nothing for the target, you're safe.
 
 ## Anti-patterns
 

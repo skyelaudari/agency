@@ -83,6 +83,38 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 
+# Default MCP config selection for --channels-mode targets.
+#
+# When the worker claude is spawned without an explicit --mcp-config, it
+# inherits the target's MCP setup. For targets running in --channels mode
+# (i.e., they have a Telegram bot polling via the channels plugin), this
+# triggers a single-poller conflict: Telegram's API allows only one
+# getUpdates client per bot token, so the worker's bun telegram and the
+# target's interactive bun fight over the polling slot via the plugin's
+# stale-poller-detection logic. The target's main bun gets SIGTERM'd; its
+# Telegram channel goes dark.
+#
+# Fix: route channels-mode targets through a curated mcp-config that loads
+# the target's MCPs WITHOUT telegram. See docs/delegation-pattern.md
+# ("Channels-mode targets and the worker MCP gotcha") for the full
+# diagnosis. Templates: templates/worker-mcp.json.template.
+#
+# Fill in the case block below for any --channels-mode target in your
+# workspace. Callers can override any default by passing --mcp-config
+# explicitly.
+if [ -z "$MCP_CONFIG" ]; then
+    case "$TARGET" in
+        # Example pattern (uncomment + adapt to your workspace):
+        # my-channels-agent)
+        #     MCP_CONFIG="${WORKSPACE_ROOT}/.delegations/worker-mcp-my-channels-agent.json"
+        #     STRICT_MCP=1
+        #     ;;
+        # Terminal-only targets (no telegram channel) need no entry —
+        # the default inherit-from-target behavior is correct for them.
+        *) ;;
+    esac
+fi
+
 # Generate unique label: prefix + target + timestamp + 4-char random suffix
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 RANDOM_SUFFIX=$(openssl rand -hex 2)

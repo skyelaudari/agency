@@ -1,0 +1,14 @@
+{
+  "_comment": "Curated worker MCP config for a --channels-mode target. Copy to .delegations/worker-mcp-<target>.json and customize: include every MCP server the target needs at delegation time, EXCEPT the telegram channels plugin. Loading telegram in the worker spawns a competing bun process that fights the target's interactive bun for the single Telegram polling slot per bot token; the target's bun gets SIGTERM'd and the Telegram channel goes dark. See docs/delegation-pattern.md ('Channels-mode targets and the worker MCP gotcha').",
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--user-data-dir",
+        "/path/to/your/playwright/user-data"
+      ]
+    }
+  }
+}
