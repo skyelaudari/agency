@@ -27,6 +27,13 @@
 #   WORKSPACE_ROOT — root containing all agent dirs (default: parent of this script's dir)
 #   LABEL_PREFIX   — launchd job label prefix (default: "com.agency.delegation")
 #   CLAUDE_BIN     — path to claude binary (default: discovered via `which claude`)
+#   CLEANUP_WRAPPER_PATH        — path to worker-cleanup-wrap.sh (default: alongside this script).
+#                                 If the file exists at the path, every spawned worker is wrapped
+#                                 in it. Wrapper is a no-op unless CLEANUP_PROCESS_PATTERNS is set.
+#   CLEANUP_PROCESS_PATTERNS    — semicolon-separated `pgrep -f` patterns. Any matching process
+#                                 is killed when the worker exits. Use to release shared-resource
+#                                 locks (e.g., a shared Playwright user-data-dir) on worker exit.
+#                                 See docs/delegation-pattern.md and bin/worker-cleanup-wrap.sh.
 #
 # Returns:
 #   stdout: the unique job label (e.g., com.agency.delegation.researcher.20260507-142030-a3f7)
@@ -143,9 +150,27 @@ CLAUDE_BIN_ESCAPED=$(echo "$CLAUDE_BIN" | xml_escape)
 TARGET_DIR_ESCAPED=$(echo "$TARGET_DIR" | xml_escape)
 
 # Build the ProgramArguments array
-ARGS_XML="        <string>${CLAUDE_BIN_ESCAPED}</string>
+#
+# If a worker-cleanup-wrap.sh script is available (default: alongside this
+# script), wrap the claude invocation in it. The wrapper sets up an exit-trap
+# that kills any processes matching CLEANUP_PROCESS_PATTERNS (env var) when
+# the worker exits — used to release shared resource locks like a shared
+# Playwright user-data-dir held by a Chrome instance. When the env var is
+# unset, the wrapper is a passthrough no-op (one extra bash subprocess per
+# delegation, negligible). See docs/delegation-pattern.md and bin/worker-cleanup-wrap.sh.
+CLEANUP_WRAPPER_PATH="${CLEANUP_WRAPPER_PATH:-${SCRIPT_DIR}/worker-cleanup-wrap.sh}"
+if [ -x "$CLEANUP_WRAPPER_PATH" ]; then
+    WRAPPER_ESCAPED=$(echo "$CLEANUP_WRAPPER_PATH" | xml_escape)
+    ARGS_XML="        <string>/bin/bash</string>
+        <string>${WRAPPER_ESCAPED}</string>
+        <string>${CLAUDE_BIN_ESCAPED}</string>
         <string>-p</string>
         <string>${PROMPT_ESCAPED}</string>"
+else
+    ARGS_XML="        <string>${CLAUDE_BIN_ESCAPED}</string>
+        <string>-p</string>
+        <string>${PROMPT_ESCAPED}</string>"
+fi
 
 if [ -n "$ADD_DIR" ]; then
     ADD_DIR_ESCAPED=$(echo "$ADD_DIR" | xml_escape)
@@ -185,6 +210,17 @@ LOG_OUT_ESCAPED=$(echo "$LOG_OUT" | xml_escape)
 LOG_ERR_ESCAPED=$(echo "$LOG_ERR" | xml_escape)
 LABEL_ESCAPED=$(echo "$LABEL" | xml_escape)
 
+# If CLEANUP_PROCESS_PATTERNS is set in the caller's env, propagate it to the
+# spawned worker so worker-cleanup-wrap.sh can act on it. Otherwise emit
+# nothing — the wrapper will be a no-op.
+CLEANUP_PATTERNS_PLIST=""
+if [ -n "${CLEANUP_PROCESS_PATTERNS:-}" ]; then
+    CLEANUP_PATTERNS_ESCAPED=$(echo "$CLEANUP_PROCESS_PATTERNS" | xml_escape)
+    CLEANUP_PATTERNS_PLIST="
+        <key>CLEANUP_PROCESS_PATTERNS</key>
+        <string>${CLEANUP_PATTERNS_ESCAPED}</string>"
+fi
+
 # Generate the plist
 cat > "$PLIST_PATH" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -207,7 +243,7 @@ ${ARGS_XML}
         <key>PATH</key>
         <string>${SPAWN_PATH_ESCAPED}</string>
         <key>HOME</key>
-        <string>${HOME_ESCAPED}</string>
+        <string>${HOME_ESCAPED}</string>${CLEANUP_PATTERNS_PLIST}
     </dict>
 
     <key>RunAtLoad</key>

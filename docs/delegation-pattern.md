@@ -99,6 +99,64 @@ When the specialist finishes, it appends a `# Response` section to the same file
 
 Keep it short. The orchestrator (or the user) should be able to read the response in 30 seconds and decide whether to dig into the artifact or move on.
 
+## Completion ping (return path)
+
+The Response section gives the orchestrator what to read. The completion ping tells the orchestrator there's something to read.
+
+Without it, completion is passive — the orchestrator discovers the response on its next file-modified system reminder, its next interactive turn, or its next inbox scan. That can be hours. If the orchestrator is mid-conversation and the specialist's work matters to the next step, the gap is felt.
+
+The fix is a small active surface: a dedicated directory the orchestrator scans on each cycle, where specialists drop a one-line ping when they finish.
+
+### Convention
+
+```
+shared/orchestrator-inbox/<timestamp>-<from>-<slug>.md
+```
+
+Frontmatter:
+
+```yaml
+---
+from: <specialist>
+completed_at: <timestamp>
+delegation_id: <original delegation filename without .md>
+archive_file: shared/delegations/archive/<original delegation filename>
+---
+```
+
+Body: one sentence summarizing what landed and the headline finding. Just enough that the orchestrator can decide whether to read the full response now or queue it for later.
+
+Naming the directory `orchestrator-inbox` is the generic convention; in practice it's typically named after the specific orchestrator (e.g., `atlas-inbox`) since each orchestrator drains its own queue.
+
+### Closeout flow
+
+After the specialist appends the Response section and moves the file to archive, it also writes the ping:
+
+1. Process the task, write the artifact.
+2. Append the `# Response` section to the delegation file.
+3. Move the file from `inbox/` to `archive/`.
+4. Append one line to `shared/journal.md`.
+5. **Write the ping file to `shared/orchestrator-inbox/`** (~5 lines, takes a second).
+
+The orchestrator's responsibilities:
+
+- Scan the orchestrator-inbox at the start of each session and at sweep intervals.
+- Read the ping summary; surface to the user if relevant.
+- Move processed pings to `orchestrator-inbox/processed/` so the inbox shows only fresh work.
+
+### Why a separate file (not just journal grep)
+
+A naive alternative is "the orchestrator scans recent journal entries for `[specialist] complete` lines." Two problems:
+
+- The journal is append-only and lossless — every line stays forever. The orchestrator-inbox is a stack you drain.
+- Journal entries are unstructured. The ping is parseable (frontmatter) and consumable in seconds.
+
+A dedicated dir is the operationally cheap way to say *here's a thing to look at, and once you've looked, move it*.
+
+### When the ping has nothing notable
+
+Even if the specialist's response doesn't surface anything that needs the orchestrator's attention (e.g., a routine sweep that produced no surprises), still write the ping. It's the heartbeat that says the delegation actually ran. Pings without notable findings are summarized as *"no surprises, see archive if needed."*
+
 ## RFC flow
 
 If the specialist needs clarification before it can finish, it doesn't pick a direction and apologize later. It returns the file with `-rfc1` suffix and a `## Open questions` section listing what it needs to know.
