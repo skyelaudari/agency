@@ -127,3 +127,12 @@ The chief-of-staff example agent at `examples/chief-of-staff/CLAUDE.md` is a com
 **No hard rules.** "Be helpful" is not a contract. The non-negotiables and the trusted-sender-channel rule are what make the contract a contract.
 
 **Soft account boundaries.** "Try to use account X" is not a boundary; it's a preference. State it as immutable + state the override mechanism (explicit flagged instruction via trusted channel + confirmation).
+
+## Config is read once, at session start
+
+`CLAUDE.md` and curated long-term memory are read when the session boots — not re-read mid-session. Two consequences that bite:
+
+- **Editing the contract doesn't take effect until the session restarts.** If you change an agent's `CLAUDE.md` while it's running, the running session keeps the old version. Restarting the agent's process (kill the long-running session so the supervisor respawns it) is what reloads it — nudging the supervisor alone won't cycle the process if the session is still alive. Plan edits as "edit, then restart."
+- **Scheduled/headless invocations cache the contract at load.** A scheduler-launched run reads the on-disk file at launch; edits made after that launch aren't seen until the next launch.
+
+Because config is read once at boot, a long-lived agent drifts from its contract the longer it runs without a restart. A simple guard is a **periodic recycler** — a scheduled job (e.g. weekly) that restarts each agent's session, capping how stale any running agent's view of its own contract can get.

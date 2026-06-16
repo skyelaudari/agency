@@ -241,3 +241,13 @@ If the target agent is terminal-only (no `--channels` flag, no telegram bot), th
 **Mixing "wake the agent" with "give the agent an instruction."** The wake prompt should be `"check your delegation inbox; new file is at <path>; process per its instructions"`. NOT the full task brief inline. The brief is in the file. The wake prompt is just the trigger.
 
 **Forgetting to archive.** Files left in inbox after completion clutter the queue and lose the "what's actually open right now" signal. Archive is part of the closeout — make it a hard requirement in the delegation template.
+
+## Completion ping — reliability caveat
+
+The completion ping is a convenience, not a guarantee. In practice a specialist sometimes finishes the work, writes the deliverable, and archives the delegation but skips the ping (the loop ends before it drops the file). Treat it as best-effort:
+
+- **The reliable signal is the artifact, not the ping.** The deliverable file and the archived delegation are written by the time the work is done; the ping is the last, most-skippable step.
+- **Poll the inbox at the start of every turn**, not only when a ping is expected. That is the dependable way to notice completed work.
+- **Background "monitors" are fragile.** A detached process that watches for the deliverable and re-invokes the orchestrator sounds clean but is easy to get wrong — loose file matches catch stale artifacts, and re-arming after a partial result races. If you use one, match on a tight, unambiguous signal (the exact new deliverable path, newer than a fixed marker) and still fall back to the per-turn inbox check.
+
+Robust async completion-notification across decoupled agents is genuinely unsolved here. The per-turn inbox poll is the floor you can rely on.

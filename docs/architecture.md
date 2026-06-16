@@ -120,3 +120,7 @@ See `docs/oauth-boundaries.md`.
 - **Not a multi-tenant system.** One user, multiple agents acting on that user's behalf.
 - **Not a model-training pipeline.** This is orchestration of an existing model (Claude), not building or fine-tuning models.
 - **Not a replacement for the API.** If you have a high-volume single-task automation, the API at low volume is cheaper. This is for personal long-horizon work where you want many short-burst sessions without flinching at cost.
+
+## 8. Model tiering (escalate for depth, don't pay for it always)
+
+Most turns run on the agent's default model. For genuinely deep work — multi-source research, competitive synthesis, large-context analysis — an agent can escalate to a more capable (and more expensive) model for that piece by spawning a research subagent or workflow pinned to the stronger tier, rather than switching the main loop. The judgment of *when* the depth justifies the cost lives in the agent's contract; the default is the cheaper tier for day-to-day, the stronger tier reserved for the few tasks that earn it. The main-loop model can't be swapped mid-session, so escalation always happens through a delegated subagent or workflow.

@@ -108,3 +108,9 @@ If you suspect a credential has leaked or an agent has acted outside its scope:
 5. Update the agent's CLAUDE.md or PREFERENCES if a new boundary is needed
 
 Treat this as an incident, even at small scale. The point of scoped credentials is that the response is bounded — but only if you actually scope them in advance.
+
+## Watch for MCP clients that share a credential cache
+
+Per-agent account scoping is necessary but not always sufficient. Some MCP clients cache their OAuth tokens in a *shared*, machine-global location keyed by service URL, not by agent. Two agents authenticating the same service through such a client collide on that cache and clobber each other's session.
+
+The fix is to point each agent's MCP client at its own cache directory — an env var such as `MCP_REMOTE_CONFIG_DIR=<agent-workspace>/.mcp/<service>-auth`, set per agent. Verify the connected account on the first call of each new session; if the wrong account surfaces, you've hit a shared-cache collision.

@@ -142,3 +142,9 @@ When you message agent A, only agent A sees it. The other agents don't share tha
 **Hardcoding the bot token in the agent's `CLAUDE.md`.** The token is a credential. It belongs in `access.json` (mode 600), not in the system prompt that's also used for AI training data context.
 
 **Adding the bot to a group chat.** These are designed as 1:1 DM bots. Group chats break the trusted-sender model.
+
+## Two setup gotchas that fail silently
+
+**The first-launch trust prompt blocks the channel.** On a fresh agent, the CLI pauses on a "do you trust the files in this folder?" prompt *before* it binds the channel plugin. Until that's answered, the agent is up but deaf — inbound messages queue with no response and no error. On bootstrap, send the confirmation keystroke to the new session (e.g. `tmux send-keys "1" C-m`) before expecting the channel to work. Put it on the bootstrap checklist.
+
+**The managed-settings channel allowlist is exclusive, not additive.** If you use a managed-settings policy to permit a channel plugin, specifying the channel-plugin allowlist *replaces* the platform default entirely — it does not add to it. To allow one extra plugin (e.g. a local one) you must re-enumerate every default you still want, or they silently stop loading. There is no additive mechanism; list the full set.
