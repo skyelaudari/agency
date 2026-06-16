@@ -148,3 +148,9 @@ When you message agent A, only agent A sees it. The other agents don't share tha
 **The first-launch trust prompt blocks the channel.** On a fresh agent, the CLI pauses on a "do you trust the files in this folder?" prompt *before* it binds the channel plugin. Until that's answered, the agent is up but deaf — inbound messages queue with no response and no error. On bootstrap, send the confirmation keystroke to the new session (e.g. `tmux send-keys "1" C-m`) before expecting the channel to work. Put it on the bootstrap checklist.
 
 **The managed-settings channel allowlist is exclusive, not additive.** If you use a managed-settings policy to permit a channel plugin, specifying the channel-plugin allowlist *replaces* the platform default entirely — it does not add to it. To allow one extra plugin (e.g. a local one) you must re-enumerate every default you still want, or they silently stop loading. There is no additive mechanism; list the full set.
+
+## A channel disconnect doesn't auto-reconnect the in-session tools
+
+The channel runs a poller process; the agent's session binds to it as MCP tools. The poller is supervised and respawns on crash — but the **session's tool binding is not**. If the poller crash-loops (e.g. a stale poller contends for the single per-bot slot during a respawn race), the session can mark the channel disconnected, and it stays dark even after the poller recovers — there is no KeepAlive for the tool binding.
+
+The tell: **outbound still works** if you send via the platform's API directly (a small script hitting the Bot API, bypassing the plugin), while **inbound goes silent** — the agent can talk but can't hear. Recovery is a manual reconnect (`/mcp` in that session) or a session restart; a shell can't re-register the binding from outside the process.
