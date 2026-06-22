@@ -10,9 +10,7 @@ This repo is the framework, the bootstrap installer, and the templates. It's not
 
 Personal AI agents that run continuously and remember context across sessions are powerful, but get expensive fast when running on usage-based APIs.
 
-Claude Code on a flat subscription removes the per-token cost.
-
-The architecture here is the answer how to wire this up so it holds together.
+Claude Code on a flat subscription removes the per-token cost. The architecture here is how to wire that up.
 
 ## What's inside
 
