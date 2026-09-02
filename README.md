@@ -10,7 +10,9 @@ This repo is the framework, the bootstrap installer, and the templates. It's not
 
 Personal AI agents that run continuously and remember context across sessions are powerful, but get expensive fast when running on usage-based APIs.
 
-Claude Code on a flat subscription removes the per-token cost. The architecture here is how to wire that up.
+Claude Code on a flat subscription removes the per-token cost.
+
+The architecture here is how to wire this up so it holds together.
 
 ## What's inside
 
@@ -22,8 +24,10 @@ agency/
 │   ├── architecture.md       # The seven design choices
 │   ├── identity-contracts.md # CLAUDE.md as persistent role definition
 │   ├── delegation-pattern.md # File-based inbox/archive + launchd one-shots
-│   ├── memory-conventions.md # Daily logs, curated long-term, references
+│   ├── memory-conventions.md # Five layers: logs, curated, references, dossiers, decisions
+│   ├── learning-loop.md      # Suggested vs actually-did, and promoting deltas to rules
 │   ├── channels-setup.md     # Per-agent Telegram bot pattern
+│   ├── telegram-acknowledgement-guards.md  # Hooks enforcing open/close acks
 │   ├── oauth-boundaries.md   # Hard account boundaries enforced at runtime
 │   └── infrastructure.md     # Tailscale + Syncthing for remote / multi-machine
 ├── templates/

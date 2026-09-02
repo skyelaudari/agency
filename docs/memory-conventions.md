@@ -1,8 +1,10 @@
 # Memory conventions
 
-Three layers of persistent state, deliberately separated. The separation is what keeps memory useful at month six instead of becoming a junk drawer.
+Five layers of persistent state, deliberately separated. The separation is what keeps memory useful at month six instead of becoming a junk drawer.
 
-## The three layers
+The first three are the base set and are enough to start. Layers 4 and 5 emerge once an agent has been running long enough to accumulate real history — they solve failures the first three cause, and both are described with the incident that produced them.
+
+## The layers
 
 ### 1. Daily logs (raw notes)
 
@@ -44,6 +46,48 @@ Example:
 - "Oncall latency dashboard at grafana.internal/d/api-latency — check when editing request-path code"
 
 The point of references is to keep external systems as the source of truth and the agent's memory as a routing layer.
+
+### 4. Entity dossiers (the read-optimized layer)
+
+Path: `<agent>/memory/entities/<slug>.md`, with an `_INDEX.md`
+
+Daily logs are a **journal**: organised by time, optimised for writing. But almost every real retrieval question is entity-shaped — *"what do we know about Acme?"* — and a journal can only answer *"what happened on July 3rd?"* That mismatch is how a long-running agent re-derives analysis it already did and loses facts it already had.
+
+One file per live opportunity, person, or workstream. The rules that make it work:
+
+- **Read the dossier FIRST**, before any work touching that entity. Step one, not an optional check.
+- **Every fact carries a source and a date.** On conflict, the later date wins — resolve it from the record. Asking the user to adjudicate something the dates already settle is the failure this exists to prevent.
+- **Record conclusions, not just events.** Keep a "positions already taken" section so analysis compounds instead of restarting. Withdrawn positions stay, marked withdrawn — the reversal is information.
+- **Write on the trigger, not at session end.** Sessions get cut off mid-thought. The moment the user states a fact or a counterparty discloses something, update the dossier *before continuing the conversation*.
+- **Distil on ingest.** Reading an expensive source — a long transcript, a dense document — must produce a durable distillate. **Anything read twice is a process failure.**
+- **Prune on supersede.** When a section is retired, cut it to a one-line stub saying so. Dossiers that only grow become unreadable, and stale full-text sections are what the agent reasons from by accident.
+
+> **The incident.** In a single evening an agent re-derived a strategic thesis it had written three weeks earlier, re-presented the user's own idea back to them as a new finding, and asked them to adjudicate a number they had explained the day before. All of it was on disk. None of it was retrievable *by entity*.
+
+### 5. The decision ledger (`DECIDED`)
+
+Path: a `🔒 DECIDED` block at the top of each entity dossier.
+
+Dossiers accrete everything an agent learns, with no line between **what the user decided** and **what the agent found while looking**. The agent then builds plans on its own research as though the user had endorsed it.
+
+- **Every dossier opens with a `DECIDED` block** — the user's actual positions, in their words, dated. Everything below it is evidence.
+- **Only the DECIDED block drives recommendations, plans, and deadlines.** A number from the evidence sections is promoted only when the user confirms it.
+- **Before recording a fact, name the decision it serves.** If it can't name one, don't write it down. A hedged note is exactly the kind that gets silently promoted later — either it's load-bearing and goes in DECIDED, or it's noise and goes nowhere.
+- **Never invent a deadline.** A clock is real only if the user set it or a counterparty stated it.
+
+> **The incident.** An agent modelled a purchase against a valuation the user had never intended to use, and manufactured a deadline from an offer expiry on an asset they weren't selling. Both numbers were real. Neither was theirs.
+
+**None of this discourages surfacing.** Raise anything, once. If the user doesn't engage, drop it — non-engagement is an answer, not a gap. Surfacing is unconstrained; it is the *decision layer* that is gated.
+
+### A plan is not a fact
+
+This one cuts across layers 1, 4 and 5, and it is the most common way a long-running agent annoys the person it works for.
+
+Agents write plans down well. They record outcomes badly. An unresolved plan and an open question are **indistinguishable on disk**, so the next session reads the plan, finds no recorded result, and re-asks something the user already answered.
+
+**When the user states an outcome — a thing happened, a thing did not happen, someone holds or does not hold a role — write it into the dossier in that same turn, above the plan it resolves, and annotate the plan so it cannot be re-read as pending.** For status that sessions keep re-deriving, put a hard-facts block at the top of the file.
+
+> **The incident.** A user corrected the same fact three times across three sessions. A grep of the whole memory tree found zero occurrences of it. The plan that implied the question was written in three places; the answer had never been written once.
 
 ## Cross-agent shared memory
 
@@ -102,3 +146,7 @@ The test: would a future-me, in a different conversation, want to know this? If 
 **Over-detailed memories.** A 500-word memory file for a one-line rule. The agent reads memory at the start of every session — keep it short or it gets skimmed.
 
 **Forgetting to maintain.** Without the weekly sweep, memory rots. Build the sweep into a recurring task or schedule.
+
+**Journal-only memory.** Daily logs with no entity layer. The agent can tell you what happened on a date and nothing about the thing you actually asked about.
+
+**Promoting your own research.** Treating something the agent found as though the user had decided it. This is the failure the `DECIDED` block exists to prevent, and it is invisible until a plan is built on it.

@@ -109,6 +109,46 @@ If you suspect a credential has leaked or an agent has acted outside its scope:
 
 Treat this as an incident, even at small scale. The point of scoped credentials is that the response is bounded — but only if you actually scope them in advance.
 
+## One agent, two identities
+
+The single-account-per-agent rule holds right up until an agent legitimately needs to act *as itself* and *read on behalf of the user*. A chief-of-staff agent that owns its own inbox and calendar, and also reads the user's, is the common case.
+
+Two identities on one agent is workable. It is also where scoping quietly breaks, in two specific ways.
+
+### Never share a credentials directory
+
+Give each identity its own directory tree, its own client secret, and its own MCP server entry:
+
+```
+<agent>/.mcp/oauth/                    # the agent's own account
+<agent>/.mcp/<principal>/oauth/        # the user's account, read-scoped
+```
+
+Two identities in one credentials directory recreates the exact *which account did that call hit* ambiguity that per-agent scoping exists to remove. Separate directories also mean a mis-scoped call fails loudly instead of silently using the wrong token.
+
+Write the routing rule into `CLAUDE.md` in one sentence the agent can apply without thinking: **anything the agent creates or owns goes in the agent's own account; the user's account is for looking, not building.**
+
+### Every server instance needs its own OAuth callback port
+
+This one costs an afternoon if you don't know it.
+
+An MCP server that runs a local OAuth callback listener typically defaults to a fixed loopback port. Run two instances of the same server — one per identity — and **whichever boots first binds the port.** The second logs something reassuring like *"callback server is already running"* and then can never complete a consent flow: the browser redirect is handled by the *first* process, which has no record of the second's state parameter and rejects it.
+
+```
+14:14:05 - pid 25848 - OAuth callback: received authorization code
+14:14:05 - pid 25848 - SECURITY: callback received unknown or expired state
+```
+
+Fix it by giving each instance its own port through whatever env var the server exposes (`WORKSPACE_MCP_PORT` and similar), and pin it in the MCP config so it survives a restart. Desktop/"installed" OAuth clients let the provider ignore the port on loopback redirects, so no console change is usually needed.
+
+**Why this belongs in a security doc rather than a troubleshooting one:** had the first process *accepted* that code, it would have written the second identity's token into the first identity's credentials directory — precisely the co-mingling the previous section forbids, arrived at by accident. A CSRF state check was the only thing standing in the way. Do not rely on it twice.
+
+### Behavioural guarantees are not credential guarantees
+
+Scope ladders are cumulative, and the rung you need often carries a capability you don't want. Requesting archive-and-label on a mailbox generally means requesting a scope the provider documents as *read, compose **and send***.
+
+So an agent told "never send mail as the user" may hold a credential that technically can. Write that down explicitly in `CLAUDE.md` rather than assuming the scope enforces it, and prefer a server that also filters the tool surface — belt and braces, with the behavioural rule as the belt.
+
 ## Watch for MCP clients that share a credential cache
 
 Per-agent account scoping is necessary but not always sufficient. Some MCP clients cache their OAuth tokens in a *shared*, machine-global location keyed by service URL, not by agent. Two agents authenticating the same service through such a client collide on that cache and clobber each other's session.
