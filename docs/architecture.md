@@ -1,6 +1,6 @@
 # Architecture
 
-Seven design choices that make this work as a long-running personal infrastructure rather than a collection of one-off prompts.
+Nine design choices that make this work as a long-running personal infrastructure rather than a collection of one-off prompts.
 
 ---
 
@@ -84,17 +84,15 @@ See `plists/agent-session.plist.template` and `templates/agent/cron/`.
 
 ## 6. Memory / journal / context conventions
 
-Three layers of persistent state, deliberately separated:
+Five layers of persistent state, deliberately separated. The first three are the base set: **daily logs** (`memory/YYYY-MM-DD.md`, raw and unsummarized), **curated long-term** (`MEMORY.md` + auto-memory files, distilled wisdom read into every session), and **references** (pointers to where information actually lives in external systems, not the information itself).
 
-**Daily logs (`memory/YYYY-MM-DD.md`):** raw notes of what happened today. Created freely. Not summarized. The grep-target for "what was happening on date X."
+Two more emerge once an agent has real history to manage: **entity dossiers** (`memory/entities/<slug>.md`, the read-optimized layer — daily logs answer "what happened on date X," dossiers answer "what do we know about this thing," and a long-running agent needs both) and the **`DECIDED` block** at the top of each dossier, which is the only part that's allowed to drive recommendations and deadlines — everything else in a dossier is evidence the agent gathered, not something the user endorsed.
 
-**Curated long-term (`MEMORY.md` at workspace root + auto-memory files):** distilled wisdom. Short, named, indexed. The agent's "long-term memory" — facts about the user, feedback patterns, durable references. Read into context every session.
+**Cross-agent shared:** `shared/journal.md` is an append-only activity log readable by every agent. `shared/context.md` is the rewritten-as-needed working state of the household.
 
-**References (`reference_*.md`):** pointers to where information lives in external systems (a Notion DB, a Linear project, a Slack channel). Not the information itself — just the pointer + when to consult it.
+Memory maintenance happens on a cadence — a manual weekly sweep at minimum, or an automated weekly/monthly consolidation job once the agent has enough history to make that worth scheduling. Either way it's additive: source files (daily logs) are never deleted or overwritten by the layers built on top of them.
 
-**Cross-agent shared:** `shared/journal.md` is an append-only activity log readable by every agent ("compass finished initial research", "writer delivered draft v1"). `shared/context.md` is the rewritten-as-needed working state of the household (active priorities, current focus, in-flight items).
-
-Memory maintenance happens on a cadence (typically a once-a-week sweep): review recent daily logs, distill significant events into long-term memory, prune outdated entries.
+One structural point that only shows up once an agent has both an interactive session and scheduled cron work: **a scheduled job cannot see the interactive session's conversation.** It only sees whatever got written to disk or to an external system of record before it ran. This drives a specific discipline — write resolutions to the shared system of record the same turn they happen, not just to the agent's own journal — covered in `docs/memory-conventions.md` and, for the briefing pipeline specifically, `docs/scheduled-briefing.md`.
 
 See `docs/memory-conventions.md`.
 
@@ -112,6 +110,18 @@ This is policy + enforcement at the runtime level. The agent that handles the ho
 
 See `docs/oauth-boundaries.md`.
 
+## 8. Model tiering (escalate for depth, don't pay for it always)
+
+Most turns run on the agent's default model. For genuinely deep work — multi-source research, competitive synthesis, large-context analysis — an agent can escalate to a more capable (and more expensive) model for that piece by spawning a research subagent or workflow pinned to the stronger tier, rather than switching the main loop. The judgment of *when* the depth justifies the cost lives in the agent's contract; the default is the cheaper tier for day-to-day, the stronger tier reserved for the few tasks that earn it. The main-loop model can't be swapped mid-session, so escalation always happens through a delegated subagent or workflow.
+
+## 9. Scheduled briefing (persistent spine, reconcile before flag)
+
+An agent that only answers when spoken to goes silent on quiet days; a scheduled sweep with nothing shared to read re-asks things the user already settled in conversation, because the cold job never saw that conversation. The fix is a persistent spine — one external system of record that holds state across days — plus a fixed morning-render / evening-update pair of jobs that both operate on it, and a reconcile step that checks what's already true before flagging anything as open.
+
+The sharpest failure mode is the one above generalized: before a scheduled job flags a calendar event or a to-do as unexplained, it has to query the system of record **in any status**, not just the filtered "active" view a normal render pass uses — the explanation usually lives in a closed record's notes, and a status filter built for the happy path hides exactly the row that answers the question.
+
+See `docs/scheduled-briefing.md`.
+
 ---
 
 ## What this is NOT
@@ -120,7 +130,3 @@ See `docs/oauth-boundaries.md`.
 - **Not a multi-tenant system.** One user, multiple agents acting on that user's behalf.
 - **Not a model-training pipeline.** This is orchestration of an existing model (Claude), not building or fine-tuning models.
 - **Not a replacement for the API.** If you have a high-volume single-task automation, the API at low volume is cheaper. This is for personal long-horizon work where you want many short-burst sessions without flinching at cost.
-
-## 8. Model tiering (escalate for depth, don't pay for it always)
-
-Most turns run on the agent's default model. For genuinely deep work — multi-source research, competitive synthesis, large-context analysis — an agent can escalate to a more capable (and more expensive) model for that piece by spawning a research subagent or workflow pinned to the stronger tier, rather than switching the main loop. The judgment of *when* the depth justifies the cost lives in the agent's contract; the default is the cheaper tier for day-to-day, the stronger tier reserved for the few tasks that earn it. The main-loop model can't be swapped mid-session, so escalation always happens through a delegated subagent or workflow.

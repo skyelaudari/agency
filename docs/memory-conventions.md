@@ -110,6 +110,42 @@ Once-a-week sweep:
 
 The sweep takes 10-20 minutes and is the single most important hygiene practice for a long-running agent. Skip it for a month and the memory becomes either out of date (agent acts on facts that aren't true anymore) or untrusted (agent stops referencing memory because too much of it is stale).
 
+### Automating the sweep: weekly and monthly consolidation
+
+The manual sweep above works right up until nobody remembers to run it. A scheduled job makes the same distillation happen regardless — and answers a question daily logs and entity dossiers can't: "what happened this month," without re-reading every daily file, which is the same cost the entity layer exists to avoid, just on the time axis instead of the topic axis.
+
+A weekly job (Sunday evening is a reasonable default):
+
+1. Reads every daily log written since the last run. A quiet week with no logs means write nothing — don't fabricate a digest to fill the slot.
+2. Distills, doesn't concatenate, into five fixed sections: **Decisions made** (what got decided and why, one line each), **Outcomes / resolved** (open things that closed this week), **Still open, carried forward** (real threads, not routine to-dos already tracked in an external system), **Lessons / process corrections** (anything the user corrected, or a process gap the agent found and fixed), **Candidates for curated long-term memory** (things in the above that look durable — flagged, not written).
+3. Writes the digest to `memory/weekly/YYYY-MM-DD.md`, dated to the week-ending day.
+4. On a cadence — e.g., checked whenever the job runs inside the first several days of a new month — rolls the last several weekly digests into `memory/monthly/YYYY-MM.md`, one level more compressed, if that month's rollup doesn't exist yet.
+5. Logs one line to today's daily note recording what got written.
+6. Stays quiet otherwise. Only notify the user if something in the digest is genuinely time-sensitive or worth surfacing now rather than discovering later — this is a maintenance job, not a report.
+
+Two rules keep this safe:
+
+- **Never delete or overwrite a source file.** Daily logs are the permanent audit trail. Every consolidation layer — weekly, monthly — is additive on top of them, never a replacement. State this as the first line of the job's own prompt; it is exactly the kind of instruction an agent will "helpfully" violate by trying to keep things tidy.
+- **The job proposes candidates for curated long-term memory, it does not write them.** Curated memory is read into every future session's context — promoting something into it deserves a human look, not a weekly job's unilateral judgment. Same principle as the promotion rule in `docs/learning-loop.md`: a pattern earns a rule only after review, not by appearing once in an automated digest.
+
+## Scheduled jobs only see durable state
+
+This is the sharpest edge in a system that mixes an always-available interactive session with scheduled jobs that wake up cold: **a scheduled job has no access to the interactive session's conversation. It only sees whatever got written to disk or to an external system of record.** Daily logs count — but only if the scheduled job actually reads them, and most don't, because reading every log on every run doesn't scale.
+
+Two failure shapes, same root cause, both caught the same day on a live system:
+
+1. **A stale duplicate record.** A decision superseded an earlier plan; a new record got written for the new decision, but the old one was never closed. The next scheduled run read both, correctly, and flagged a conflict. The conflict was real — the old record just should never have still been open.
+2. **An explanation that never left the chat.** The user explained an anomaly directly in conversation. The agent acknowledged it and logged it to the day's daily note — its own journal, which the scheduled job never reads. The next scheduled run re-flagged the same anomaly as unexplained, correctly, because as far as it could see, nothing had answered it.
+
+**The fix is discipline the scheduled job's own logic can check for, not a new tool:**
+
+- The moment something is resolved, decided, or explained in an interactive session, write it to the shared system of record — a database row, a tracked issue, whatever the scheduled job actually reads — in that same turn. Not "later." Not "to the daily log, which is close enough." The daily log is not visible to anything that isn't reading it on purpose.
+- Before creating a new record about a topic, search for an existing one first. The stale-duplicate failure above is the same problem approached from the other direction, and a search catches it before it happens rather than after a scheduled job flags the conflict.
+- On the scheduled-job side, before flagging anything as unexplained, query the system of record directly for a matching entry **in any status**, not just the filtered "active" view a render step normally uses. Closed and cancelled records carry exactly the explanations a reconcile step needs, and a status filter hides them from a query that only looks at what's open.
+- A bounded fallback — grep the relevant daily log for the anomaly's keyword before flagging — catches the case where the write-discipline above slipped. It is a cheap safety net, not a substitute for writing to the system of record in the first place; a raw journal file is too unstructured to be the primary check.
+
+See `docs/scheduled-briefing.md` for how this plays out inside a recurring briefing pipeline specifically.
+
 ## When to write memory
 
 **Always write durably (not "remember this in conversation"):**

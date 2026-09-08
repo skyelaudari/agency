@@ -26,6 +26,7 @@ agency/
 │   ├── delegation-pattern.md # File-based inbox/archive + launchd one-shots
 │   ├── memory-conventions.md # Five layers: logs, curated, references, dossiers, decisions
 │   ├── learning-loop.md      # Suggested vs actually-did, and promoting deltas to rules
+│   ├── scheduled-briefing.md # Persistent spine, reconcile-before-flag, the chat blind spot
 │   ├── channels-setup.md     # Per-agent Telegram bot pattern
 │   ├── telegram-acknowledgement-guards.md  # Hooks enforcing open/close acks
 │   ├── oauth-boundaries.md   # Hard account boundaries enforced at runtime
