@@ -143,6 +143,14 @@ Fix it by giving each instance its own port through whatever env var the server 
 
 **Why this belongs in a security doc rather than a troubleshooting one:** had the first process *accepted* that code, it would have written the second identity's token into the first identity's credentials directory — precisely the co-mingling the previous section forbids, arrived at by accident. A CSRF state check was the only thing standing in the way. Do not rely on it twice.
 
+### Don't build the OAuth server yourself
+
+Everything above is the direct-REST pattern (see "Worked example: Gmail"): the agent itself refreshes tokens and calls the API. It's what this framework defaults to, for the scoping reasons in this section (predictable scoping, works fine in a headless/cron session with no MCP loaded).
+
+But if what you actually want is an MCP server — because the agent is interactive-only and MCP's tool ergonomics are simpler than hand-rolling REST calls, which is a fine reason — **use an existing, maintained one. Don't write a custom MCP server that runs its own OAuth callback listener from scratch.** For Google Workspace specifically, `workspace-mcp` (installed via `uvx workspace-mcp`) already does this: it runs the browser-redirect OAuth flow, stores and refreshes tokens, and exposes Gmail/Calendar/Drive/Docs/Sheets as MCP tools. Point it at a per-agent credential directory with `GOOGLE_CLIENT_SECRET_PATH` and `GOOGLE_MCP_CREDENTIALS_DIR`, pin `WORKSPACE_MCP_PORT` if more than one instance will ever run on the same host (see the port-collision note above), and you're done — no OAuth code to write or maintain.
+
+An OAuth callback listener is a small piece of surface with an outsized failure cost if it's wrong: it's a local HTTP server accepting a redirect with a state parameter that has to be checked, receiving and storing a credential that has to land in the right file. The port-collision incident above is exactly what happens when this is rebuilt casually instead of reused from something already hardened by other users hitting the same edge cases first.
+
 ### Behavioural guarantees are not credential guarantees
 
 Scope ladders are cumulative, and the rung you need often carries a capability you don't want. Requesting archive-and-label on a mailbox generally means requesting a scope the provider documents as *read, compose **and send***.
