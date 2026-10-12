@@ -128,6 +128,14 @@ Two rules keep this safe:
 - **Never delete or overwrite a source file.** Daily logs are the permanent audit trail. Every consolidation layer — weekly, monthly — is additive on top of them, never a replacement. State this as the first line of the job's own prompt; it is exactly the kind of instruction an agent will "helpfully" violate by trying to keep things tidy.
 - **The job proposes candidates for curated long-term memory, it does not write them.** Curated memory is read into every future session's context — promoting something into it deserves a human look, not a weekly job's unilateral judgment. Same principle as the promotion rule in `docs/learning-loop.md`: a pattern earns a rule only after review, not by appearing once in an automated digest.
 
+### Promote on the daily sweep
+
+A weekly job is too slow for one failure: a complete analysis (named figures, a decision framework, a multi-step conclusion) written into a daily log and never promoted to an entity dossier. Weeks later the topic comes back. The dossier is checked first, and it's empty or missing. The analysis gets rebuilt from scratch, sometimes worse, while the original sits in a daily file nobody opened.
+
+The fix is a mechanical sub-step in the jobs that already run every day. If you run a morning brief and an evening close (see `docs/scheduled-briefing.md`), add to each prompt, before composing: *grep the most recent daily log for a decision framework, named figures, or a multi-step conclusion that isn't yet in `memory/entities/`. If found, promote it now.* Use the same bar as the in-session promotion rule: would it take someone more than five minutes to reconstruct? Then it gets a dossier.
+
+This copies the shape of the daily background consolidation pass that the more memory-sophisticated consumer agents run. They edit the archive within a day of new material arriving rather than letting it pile up (see `docs/profile-consent-and-action-log.md`). It adds no new infrastructure, just one more mechanical check in a job that already runs.
+
 ## Scheduled jobs only see durable state
 
 This is the sharpest edge in a system that mixes an always-available interactive session with scheduled jobs that wake up cold: **a scheduled job has no access to the interactive session's conversation. It only sees whatever got written to disk or to an external system of record.** Daily logs count — but only if the scheduled job actually reads them, and most don't, because reading every log on every run doesn't scale.
@@ -168,6 +176,8 @@ Memory is one of several persistence mechanisms:
 - **Plans** are for in-conversation alignment on approach. Don't substitute memory for plan.
 - **Tasks** are for tracking discrete steps in the current session. Don't substitute memory for tasks.
 - **Memory** is for what should be recallable across future sessions.
+- **The session checkpoint** (`memory/checkpoint.md`) is for in-flight state across a restart: one snapshot, overwritten, cleared once read. See `docs/session-continuity.md`.
+- **The action log** (`memory/action-log.md`) is a flat, append-only record of external-facing actions, so "did I actually do that" is a grep. See `docs/profile-consent-and-action-log.md`.
 
 The test: would a future-me, in a different conversation, want to know this? If yes, memory. If only this-session, plan or task.
 

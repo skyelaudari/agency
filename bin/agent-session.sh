@@ -12,6 +12,8 @@
 #     leaking that agent's env vars into all the others.
 #   - Creates the tmux session if it doesn't exist, with `claude --channels`
 #     running inside
+#   - If memory/checkpoint.md exists, types a read-the-checkpoint instruction
+#     once the prompt renders (see docs/session-continuity.md)
 #   - Foreground-waits while the session lives (so launchd can monitor it)
 #   - Exits when the session dies (claude /exit, crash, manual kill).
 #     launchd KeepAlive will trigger a fresh start within ~10s.
@@ -47,6 +49,33 @@ CHANNELS_PLUGIN="${CHANNELS_PLUGIN:-plugin:telegram@claude-plugins-official}"
 if ! "$TMUX" -L "$AGENT" has-session -t "$SESSION" 2>/dev/null; then
     "$TMUX" -L "$AGENT" new-session -d -s "$SESSION" -c "$DIR" \
         "exec $CLAUDE --dangerously-skip-permissions --channels $CHANNELS_PLUGIN"
+
+    # Boot kick. A fresh claude session sits idle until a message arrives, so
+    # a "read memory/checkpoint.md on boot" rule never fires on its own. If the
+    # previous session left a checkpoint, wait for the input prompt to render,
+    # then type an instruction to read it and send the back-online message.
+    # Only runs when a checkpoint exists: agents without the convention are
+    # unaffected, and crash/rescue restarts (no checkpoint) stay silent.
+    # See docs/session-continuity.md.
+    # BOOT_READY_PATTERN is text that appears in the pane once the prompt is
+    # ready; the default matches the bypass-permissions footer.
+    CHECKPOINT="${DIR}/memory/checkpoint.md"
+    READY="${BOOT_READY_PATTERN:-bypass permissions}"
+    if [ -s "$CHECKPOINT" ]; then
+        (
+            i=0
+            while [ $i -lt 24 ]; do
+                sleep 5
+                i=$((i + 1))
+                if "$TMUX" -L "$AGENT" capture-pane -p -t "$SESSION" 2>/dev/null | grep -q "$READY"; then
+                    sleep 5
+                    "$TMUX" -L "$AGENT" send-keys -t "$SESSION" -l "SYSTEM: fresh session after a restart. Read memory/checkpoint.md now and pick up the thread. If it says a restart notice was sent, send the back-online message on that channel (for Telegram: the reply tool, which also proves the channel is live). Then clear the file." 2>/dev/null
+                    "$TMUX" -L "$AGENT" send-keys -t "$SESSION" C-m 2>/dev/null
+                    break
+                fi
+            done
+        ) &
+    fi
 fi
 
 # Block while the session lives so launchd can supervise

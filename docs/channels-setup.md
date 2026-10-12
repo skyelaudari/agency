@@ -158,3 +158,10 @@ The tell: **outbound still works** if you send via the platform's API directly (
 ### Mitigation: a channel-health watchdog
 
 Because nothing auto-reconnects the binding, a small scheduled watchdog is worth running — `bin/channel-health-watchdog.sh` (reference implementation; `plists/channel-watchdog.plist.template`). One cheap pass across all agents every ~2 minutes (a few `ps`/file-stat calls — no model calls, not per-agent): it reaps duplicate pollers and, on detecting an active crash-loop, restarts specialists (debounced; context is persisted) while only alerting for the orchestrator (never restarting it mid-conversation). It catches active churn; a long-settled-but-dark binding needs a per-agent inbound heartbeat (a v2 you can add by emitting a timestamp on each inbound and flagging staleness in the same pass).
+
+### The quiet death: a liveness watchdog that checkpoints before restarting
+
+The channel-health watchdog catches churn. It misses the other failure: the plugin process dies quietly, with no crash loop and nothing in its error log, and the agent goes deaf until someone notices. `bin/telegram-liveness-watchdog.sh` (`plists/telegram-liveness.plist.template`) checks every two minutes for the plugin's process under each agent's `claude` process. When it's gone on two consecutive checks, the watchdog waits for the agent to be idle and asks it to write `memory/checkpoint.md`. It restarts the session only once that file is confirmed rewritten. No checkpoint means no restart, only an alert. It restarts at most once per agent per 30 minutes. The fresh session reads the checkpoint on boot and sends a back-online message, so nothing in flight is lost. Full mechanism: `docs/session-continuity.md`.
+
+Run both watchdogs: the older one still reaps duplicate pollers, which this one doesn't.
+

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.example.telegram-liveness</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/REPLACE/WITH/PATH/TO/bin/telegram-liveness-watchdog.sh</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>WORKSPACE_ROOT</key>
+    <string>/REPLACE/WITH/WORKSPACE_ROOT</string>
+    <!-- Space-separated agent names (tmux socket + session names). -->
+    <key>AGENTS</key>
+    <string>chief-of-staff researcher</string>
+    <!-- Gets extra idle checks before any restart. -->
+    <key>ORCHESTRATOR</key>
+    <string>chief-of-staff</string>
+    <!-- Optional: a command that sends an alert, called with the message as its last argument. -->
+    <key>NOTIFY_CMD</key>
+    <string></string>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <!-- One cheap pass across all agents every 2 minutes. No model calls. -->
+  <key>StartInterval</key>
+  <integer>120</integer>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/tmp/telegram-liveness/launchd.out</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/telegram-liveness/launchd.err</string>
+</dict>
+</plist>

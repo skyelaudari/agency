@@ -21,12 +21,14 @@ agency/
 ├── README.md                 # This file
 ├── INSTALL.md                # Bootstrap walkthrough
 ├── docs/
-│   ├── architecture.md       # The seven design choices
+│   ├── architecture.md       # The ten design choices
 │   ├── identity-contracts.md # CLAUDE.md as persistent role definition
 │   ├── delegation-pattern.md # File-based inbox/archive + launchd one-shots
 │   ├── memory-conventions.md # Five layers: logs, curated, references, dossiers, decisions
 │   ├── learning-loop.md      # Suggested vs actually-did, and promoting deltas to rules
 │   ├── scheduled-briefing.md # Persistent spine, reconcile-before-flag, the chat blind spot
+│   ├── session-continuity.md # Checkpoint before every restart; liveness watchdog
+│   ├── profile-consent-and-action-log.md  # Quick profile, consent table, action log
 │   ├── channels-setup.md     # Per-agent Telegram bot pattern
 │   ├── telegram-acknowledgement-guards.md  # Hooks enforcing open/close acks
 │   ├── oauth-boundaries.md   # Hard account boundaries enforced at runtime
@@ -38,10 +40,13 @@ agency/
 │   ├── bootstrap-agent.sh    # New-agent setup
 │   ├── submit-delegation.sh  # Spawn a delegated agent run via launchd
 │   ├── wait-delegation.sh    # Poll until a delegation completes
-│   └── cleanup-delegation.sh # Tear down a finished delegation job
+│   ├── cleanup-delegation.sh # Tear down a finished delegation job
+│   ├── agent-session.sh      # launchd → tmux session wrapper (with checkpoint boot kick)
+│   └── telegram-liveness-watchdog.sh  # Restart a deaf agent, checkpoint first
 ├── plists/
 │   ├── agent-session.plist.template     # tmux+launchd session
-│   └── delegation-job.plist.template    # one-shot delegation
+│   ├── delegation-job.plist.template    # one-shot delegation
+│   └── telegram-liveness.plist.template # liveness watchdog, every 2 min
 └── examples/
     ├── chief-of-staff/       # Orchestrator-shaped agent
     └── researcher/           # Specialist agent

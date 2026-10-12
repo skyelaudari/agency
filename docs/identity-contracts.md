@@ -18,6 +18,10 @@ Three reasons.
 
 A working `CLAUDE.md` has roughly nine sections. Length: two pages, not ten. Read the whole thing in one sitting.
 
+### 0. Quick profile (read this first)
+
+A short block directly under the title, before everything else: who the agent serves, the user's stated voice preferences, a one-line autonomy calibration (internal work vs. external actions), the trusted channels, and an instruction to check the entity-dossier index before working on any named topic. This is the small, always-loaded personalization layer. The rest of the file is detail, credential paths, and incident history that matter for correctness but aren't what a session needs first. Keep it short. Detail that starts collecting here belongs further down. See `docs/profile-consent-and-action-log.md`.
+
 ### 1. Identity
 
 - **Name** — what to call this agent
@@ -96,6 +100,8 @@ If this agent dispatches work to others, list them: who they are, what they do, 
 ### 11. Memory + persistence rules
 
 - Where daily logs go
+- The session checkpoint: write before any self-initiated restart, read and clear on boot (`docs/session-continuity.md`)
+- The action log: one line per external-facing action, appended immediately
 - Where curated long-term memory lives
 - What goes in which place
 - Maintenance cadence
@@ -135,4 +141,4 @@ The chief-of-staff example agent at `examples/chief-of-staff/CLAUDE.md` is a com
 - **Editing the contract doesn't take effect until the session restarts.** If you change an agent's `CLAUDE.md` while it's running, the running session keeps the old version. Restarting the agent's process (kill the long-running session so the supervisor respawns it) is what reloads it — nudging the supervisor alone won't cycle the process if the session is still alive. Plan edits as "edit, then restart."
 - **Scheduled/headless invocations cache the contract at load.** A scheduler-launched run reads the on-disk file at launch; edits made after that launch aren't seen until the next launch.
 
-Because config is read once at boot, a long-lived agent drifts from its contract the longer it runs without a restart. A simple guard is a **periodic recycler** — a scheduled job (e.g. weekly) that restarts each agent's session, capping how stale any running agent's view of its own contract can get.
+Because config is read once at boot, a long-lived agent drifts from its contract the longer it runs without a restart. A simple guard is a **periodic recycler** — a scheduled job (e.g. weekly) that restarts each agent's session, capping how stale any running agent's view of its own contract can get. Have the recycler ask the live session to write its checkpoint and wait for the file before killing it, so a scheduled restart never drops a thread (`docs/session-continuity.md`).

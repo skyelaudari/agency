@@ -112,6 +112,20 @@ Bootstrapped today via agency/bin/bootstrap-agent.sh.
 EOF
 echo "  ✓ memory/${TODAY}.md initialized"
 
+# Action log + entity index (see docs/profile-consent-and-action-log.md).
+# No checkpoint.md: it only exists between a restart and the next boot.
+mkdir -p "$AGENT_DIR/memory/entities"
+[ -f "$AGENT_DIR/memory/action-log.md" ] || cat > "$AGENT_DIR/memory/action-log.md" <<'EOF'
+# Action log — one line per external-facing action, appended immediately after it.
+# YYYY-MM-DD HH:MM TZ | account | action | target
+EOF
+[ -f "$AGENT_DIR/memory/entities/_INDEX.md" ] || cat > "$AGENT_DIR/memory/entities/_INDEX.md" <<'EOF'
+# Entity dossiers — index
+
+One line per dossier: `[slug](slug.md) — what it covers`. Read the dossier before working on that entity.
+EOF
+echo "  ✓ memory/action-log.md + memory/entities/_INDEX.md initialized"
+
 # 5. Generate the session plist from template
 SESSION_LABEL="${LABEL_PREFIX}.${AGENT}.session"
 PLIST_TEMPLATE="${AGENCY_ROOT}/plists/agent-session.plist.template"

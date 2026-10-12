@@ -1,4 +1,7 @@
 #!/bin/bash
+# NOTE: this catches crash-loop churn and duplicate pollers only. A plugin that
+# dies quietly (no churn, nothing in plugin.err) is caught by
+# telegram-liveness-watchdog.sh instead. Run both. See docs/session-continuity.md.
 # channel-health-watchdog.sh — keep per-agent messaging channels healthy.
 #
 # Reference implementation. The messaging channel runs a poller process bound to

@@ -1,6 +1,6 @@
 # Architecture
 
-Nine design choices that make this work as a long-running personal infrastructure rather than a collection of one-off prompts.
+Ten design choices that make this work as a long-running personal infrastructure rather than a collection of one-off prompts.
 
 ---
 
@@ -10,7 +10,7 @@ Each agent has a `CLAUDE.md` at the root of its workspace directory. Claude Code
 
 This is the difference between "act as a CFO" prompt-engineering and a long-running agent that holds a stable identity across weeks. The role is encoded in the file system, not re-asserted on each invocation.
 
-Keep it short enough to read end-to-end (two pages, not ten). Update it when the agent's operating model shifts — and tell the agent that you did, because it's the agent's "soul" and rewriting it should be a deliberate, communicated act.
+Keep it short enough to read end-to-end (two pages, not ten). Open it with a compact **quick profile**: who the agent serves, the voice the user wants, a one-line autonomy calibration, the trusted channels, and "check the entity index before working on a named topic." That's the small always-loaded personalization layer, kept separate from the credential paths and incident history below it. Collect the ask-first/auto-allow rules into one **action consent table** rather than scattering them across paragraphs. Update it when the agent's operating model shifts — and tell the agent that you did, because it's the agent's "soul" and rewriting it should be a deliberate, communicated act.
 
 See `docs/identity-contracts.md` for the structure and a worked example.
 
@@ -121,6 +121,12 @@ An agent that only answers when spoken to goes silent on quiet days; a scheduled
 The sharpest failure mode is the one above generalized: before a scheduled job flags a calendar event or a to-do as unexplained, it has to query the system of record **in any status**, not just the filtered "active" view a normal render pass uses — the explanation usually lives in a closed record's notes, and a status filter built for the happy path hides exactly the row that answers the question.
 
 See `docs/scheduled-briefing.md`.
+
+## 10. Session continuity (checkpoint before every restart)
+
+Memory makes durable knowledge survive a restart. It doesn't save in-flight state: what the agent was doing and who it was talking to. Long-running agents get restarted for routine reasons (a contract edit, the weekly recycler, a dead channel), so that state needs its own mechanism: one overwrite-only `memory/checkpoint.md`, written before every restart, read and cleared on boot. A boot trigger in the session wrapper makes sure the fresh session actually reads it. A notice/back-online message pair tells the user what happened. A liveness watchdog restarts an agent whose channel plugin died, but only after confirming a fresh checkpoint. Alongside it, an append-only `memory/action-log.md` records every external-facing action, so "did I actually do that" is a grep.
+
+See `docs/session-continuity.md` and `docs/profile-consent-and-action-log.md`.
 
 ---
 

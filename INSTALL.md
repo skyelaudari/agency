@@ -101,6 +101,7 @@ This creates `$WORKSPACE_ROOT/chief-of-staff/` with:
 - `CLAUDE.md` (scaffolded from template, ready to edit)
 - `MEMORY.md` (empty)
 - `memory/<today>.md` (initial daily log)
+- `memory/action-log.md` (empty action log) and `memory/entities/_INDEX.md` (empty dossier index)
 - `cron/` (empty, for scheduled jobs you'll add later)
 - `.mcp/oauth/` (mode 700, for scoped OAuth tokens you'll add later)
 - `.claude/channels/telegram/` (where the channels-mode plugin will write state)
@@ -117,6 +118,8 @@ Open `$WORKSPACE_ROOT/chief-of-staff/CLAUDE.md` and replace the placeholders:
 - `{{AGENT_VIBE}}` — voice and manners (e.g., "Sharp, calm, resourceful. Run point.")
 - `{{AGENT_EMOJI}}` — a single emoji
 - `{{AGENT_PRIME_DIRECTIVE}}` — the one thing this agent prioritizes above other concerns
+- `{{USER_VOICE_PREFERENCES}}` — how you want to be talked to, in your words (goes in the Quick profile block)
+- `{{CURRENT_PRIORITY}}` — what this agent should focus on right now; update this line when it shifts
 - `{{SERVICE_*}}`, `{{ACCOUNT_*}}`, `{{TOKEN_PATH}}` — your account boundaries
 - `{{TRUSTED_CHANNEL_*}}` — your trusted communication channels
 - `{{USER_TELEGRAM_ID}}` — your Telegram user ID (see step 7)
