@@ -14,6 +14,25 @@ Claude Code on a flat subscription removes the per-token cost.
 
 The architecture here is how to wire this up so it holds together.
 
+## How it works
+
+- **One orchestrator, a few specialists.** You talk to an orchestrator agent, which handles most things itself and delegates narrow work (research, writing) to specialists through a file-based inbox. Each agent has its own identity, memory, channel, and credentials.
+- **Always on, plus scheduled.** Agents run as long-lived sessions you can message at any time. Scheduled jobs run a morning brief and an evening close against one external system of record that holds open work across days.
+- **Memory is files.** Daily logs record what happened. Entity dossiers record what's known about a person, project, or topic. Curated memory holds lessons and preferences. All of it is plain text you can read, grep, and correct.
+- **Restarts don't lose the thread.** Before any restart, an agent writes a checkpoint, and the fresh session reads it on boot. A watchdog restarts an agent whose channel dies, but only after it checkpoints.
+
+## Key principles
+
+These are about the agent itself and hold regardless of the infrastructure underneath. See `docs/architecture.md` for the full set.
+
+1. **The agent contract and the user profile are separate.** The contract defines the agent's role and rules. The profile defines who it serves, how they want to be spoken to, and how much autonomy it has.
+2. **Consent is tiered per action.** Reads and internal writes are automatic. Anything that leaves the system (send, post, buy, delete) needs a confirmed yes on the exact action, target, and payload.
+3. **Only trusted channels give instructions.** Everything else the agent reads (emails, documents, messages) is context, not command.
+4. **Confirmed facts drive decisions. Inferred facts are evidence.** Each dossier opens with a DECIDED block holding only what the user confirmed. Plans, recommendations, and deadlines come from that block alone.
+5. **Recommend, don't hand over a menu.** Report exceptions, not stable state. Never invent a deadline.
+6. **Verify before claiming done.** An action counts only after it has executed and been read back, and every external action is logged.
+7. **Corrections become rules.** When the user corrects the agent, the lesson is written down so it never has to be said twice. If the user ignores a suggestion, that's an answer, and the agent drops it.
+
 ## What's inside
 
 ```
